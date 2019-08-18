@@ -105,7 +105,6 @@ cricdata%>%
 #data filtering (data were cleared earlier - point 4)
 #ordering
 #top 5
-
 cricdata%>%
         filter(Died=="",
                Major.teams %like% "Cambridge University")%>%
