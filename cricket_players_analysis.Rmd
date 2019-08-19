@@ -1,0 +1,174 @@
+---
+title: "Cricket players - analysis"
+author: "Tomasz Solis"
+date: "19 August 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Introduction
+The analysis was conducted as a part of recruitment process for SAI Global. To perform it I used 3 libraries listed below.
+```{r libraries, warning=FALSE, echo=FALSE, message=FALSE}
+library(data.table)
+library(tidyverse)
+library(kableExtra)
+```
+Full specification of the software used is listed on the bottom of the document. To begin with, I started with unzipping the file received and loading the data into RStudio as characters to avoid unnecessary factorization. 
+```{r unzip load overview}
+unzip("espn-cricket-players-data.zip")
+cricdata<- data.table(read.csv("cricket_data.csv", stringsAsFactors=FALSE))
+dim(cricdata)
+```
+The data itself is significant in size with multiple columns not used in the analysis. 
+
+##Task 1 - Top 10 countries ranked by Test Runs scored
+First task was to list the top 10 countries based on test runs scored. 
+To get the information necessary, examination of BOWLING_Tests_Runs and BATTING_Tests_Runs columns was performed. Large number of missing values was detected therefore "0" were input as a default for such occurances. The two columns were later transformed into numeric values.
+```{r missing values 1}
+#cleaning the data in Bowling Test Runs
+cricdata$BOWLING_Tests_Runs[cricdata$BOWLING_Tests_Runs==""]<-0
+cricdata$BOWLING_Tests_Runs[cricdata$BOWLING_Tests_Runs=="-"]<-0
+cricdata$BOWLING_Tests_Runs<-as.numeric(cricdata$BOWLING_Tests_Runs)
+
+#cleaning the data in Batting Test Runs
+cricdata$BATTING_Tests_Runs[cricdata$BATTING_Tests_Runs==""]<-0
+cricdata$BATTING_Tests_Runs[cricdata$BATTING_Tests_Runs=="-"]<-0
+cricdata$BATTING_Tests_Runs<-as.numeric(cricdata$BATTING_Tests_Runs)
+```
+Test_Runs_TOTAL column was created by adding 2 columns mentioned above.
+```{r summarising the test runs}
+cricdata$Test_Runs_TOTAL <- cricdata$BOWLING_Tests_Runs + cricdata$BATTING_Tests_Runs
+```
+Data was leter aggregated by country and top 10 list is displayed below.
+```{r aggregating by country and show top 10}
+aggregate(Test_Runs_TOTAL~COUNTRY,cricdata, sum)%>%
+        arrange(desc(Test_Runs_TOTAL))%>%
+        setNames(c("Country", "Test Runs"))%>%
+        head(n=10)%>%
+        kable() %>%
+        kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+
+##Task 2 - Top players who have played for England in any category
+The next question was to filter out top players who have played for England as one of their major teams, who have a ‘Test Batting Average’ greater than or equal to 30, but have batted in 100 or more ‘Batting Test Inns’, ranked by sum of ‘Test Runs’.
+
+First step was similar to the previous task - fill in the missing data. It was done by inputting "0" in places of "" and "-". Columns BATTING_Tests_Ave and BATTING_Tests_Inns were converted to numeric for further computations.
+
+```{r missing values 2}
+cricdata$BATTING_Tests_Ave[cricdata$BATTING_Tests_Ave==""]<-0
+cricdata$BATTING_Tests_Ave[cricdata$BATTING_Tests_Ave=="-"]<-0
+cricdata$BATTING_Tests_Ave<-as.numeric(cricdata$BATTING_Tests_Runs)
+
+cricdata$BATTING_Tests_Inns[cricdata$BATTING_Tests_Inns==""]<-0
+cricdata$BATTING_Tests_Inns[cricdata$BATTING_Tests_Inns=="-"]<-0
+cricdata$BATTING_Tests_Inns<-as.numeric(cricdata$BATTING_Tests_Inns)
+```
+
+Filtering based on the question was performed and selected columns were chosen to limit the size of the data displayed. 
+```{r filtering 2}
+cricdata%>%
+        filter(Major.teams %like% "England",
+               BATTING_Tests_Ave >=30, 
+               BATTING_Tests_Inns>=100)%>%
+        select(NAME, Test_Runs_TOTAL)%>%
+        arrange(desc(Test_Runs_TOTAL))%>%
+        setNames(c("Name", "Test Runs"))%>%
+        head(n=10)%>%
+        kable() %>%
+        kable_styling(bootstrap_options = "striped", full_width = F)
+```    
+
+##Task 3 - Wisden Cricketer of the Year
+Subsequent task was to list the countries whose cricketers have won the “Wisden Cricketer of the Year” award including;
+
+* The number of times players from these countries have won;
+
+* How this looks as a percentage;
+
+* The stats on whether the cricketer is likely to be a right-hand batter 
+or left-hand batter.
+
+First step was to filter the players by "Wisden Cricketer of the Year" in column AWARDS. To limi the size of the output, only COUNTRY and Batting.style columns were selected.
+
+```{r filtering 3}
+cricdata%>%
+        filter(grepl("Wisden Cricketer of the Year", AWARDS, fixed = TRUE))%>%
+        select("COUNTRY", "Batting.style")->wca
+```
+
+Next step was focusing on grouping the previous outcome (wca) by COUNTRY to end up with awards per country. Calculation of percentage in total number of winners was also performed.
+```{r awards per country}
+wcaPart1<- wca%>%
+        group_by(COUNTRY) %>%
+        summarise(noOfAwards = length(COUNTRY))%>%
+        mutate(percent = round(noOfAwards / sum(noOfAwards)*100,2))%>%
+        select(COUNTRY, percent, noOfAwards)
+```
+
+Another part of the task was to group awards by country and batting style. General grouping function was used. I decided to separate the outcomes into two groups: "Left-hand bat" and "Right-hand bat" and use them as columns in the final result. Proper naming of the columns in each set was also introduced.
+```{r Batting style data}
+wcaPart2<- as.data.frame(table(wca))
+wcaPart2Left<-wcaPart2[wcaPart2$Batting.style == "Left-hand bat",c("COUNTRY", "Freq")]
+wcaPart2Right<-wcaPart2[wcaPart2$Batting.style == "Right-hand bat",c("COUNTRY", "Freq")]
+#adding proper names for batting style columns
+colnames(wcaPart2Left)<-c("COUNTRY", "Left-hand bat")
+colnames(wcaPart2Right)<-c("COUNTRY", "Right-hand bat")
+```
+The last part of the task was to merge previous outcomes into one table. the final outcome was also ordered by percentage of awards received by the country for easier reading.
+```{r merging}
+merge(wcaPart1, wcaPart2Left, by = "COUNTRY")%>%
+        merge(wcaPart2Right, by = "COUNTRY")%>%
+        setNames(c("Country", 
+                   "percent", 
+                   "number of awards", 
+                   "Left-hand bat", 
+                   "Right-hand bat"))%>%
+        arrange(desc(percent))%>%
+        kable() %>%
+        kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+##Task 4 - Top 10 Bowling Test Wickets Players
+Second to last task was focusing on a list of Top 10 Bowling Tests Wickets, by player, showing their country, and their bowling style.
+
+As in first tasks in the analysis, missing data was detected and filled in. Transformation into numeric was performed.
+
+```{r missing values 4}
+cricdata$BOWLING_Tests_Wkts[cricdata$BOWLING_Tests_Wkts==""]<-0
+cricdata$BOWLING_Tests_Wkts[is.na(cricdata$BOWLING_Tests_Wkts)]<-0
+cricdata$BOWLING_Tests_Wkts[cricdata$BOWLING_Tests_Wkts=="-"]<-0
+cricdata$BOWLING_Tests_Wkts <- as.numeric(cricdata$BOWLING_Tests_Wkts)
+```
+Selected columns were arranged in descending order to receive the output required. Appropiate names were set and top 10 result is displayed below.
+```{r top10 4}
+cricdata%>%
+        select("NAME", "BOWLING_Tests_Wkts", "Bowling.style")%>%
+        arrange(desc(BOWLING_Tests_Wkts))%>%
+        setNames(c("Name", "Bowling Test Wickets", "Bowling style"))%>%
+        head(n=10)%>%
+        kable() %>%
+        kable_styling(bootstrap_options = "striped", full_width = F)
+```
+##Task 5 - Top 5 living English Test Bowlers
+The final task was to prepare a list of top 5 English ‘Test Bowlers’ who are still alive, ranked by ‘Bowling Tests Wickets’, who played for Cambridge University as a major team.
+
+Due to the fact that missing data are in place (see Task 4), only filtering and ordering needed to be done.
+```{r top5 5}
+cricdata%>%
+        filter(Died=="",
+               Major.teams %like% "Cambridge University")%>%
+        select(c("NAME", "BOWLING_Tests_Wkts"))%>%
+        arrange(desc(BOWLING_Tests_Wkts))%>%
+        setNames(c("Name", "Bowling Test Wickets"))%>%
+        head(n=5)%>%
+        kable() %>%
+        kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+Full details of the setup used:
+```{r sessionInfo}
+sessionInfo()
+```
