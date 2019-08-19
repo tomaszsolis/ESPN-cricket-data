@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ##Introduction
-The analysis was conducted as a part of recruitment process for SAI Global. To perform it I used 3 libraries listed below.
+To perform the analysis, I used 3 libraries listed below.
 ```{r libraries, warning=FALSE, echo=FALSE, message=FALSE}
 library(data.table)
 library(tidyverse)
