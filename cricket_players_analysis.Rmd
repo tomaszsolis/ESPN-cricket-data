@@ -9,13 +9,16 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ##Introduction
+Full specification of the software used is listed on the bottom of the document. 
+
 To perform the analysis, I used 3 libraries listed below.
-```{r libraries, warning=FALSE, echo=FALSE, message=FALSE}
+```{r libraries, warning=FALSE, echo=TRUE, message=FALSE}
 library(data.table)
 library(tidyverse)
 library(kableExtra)
 ```
-Full specification of the software used is listed on the bottom of the document. To begin with, I started with unzipping the file received and loading the data into RStudio as characters to avoid unnecessary factorization. 
+
+To begin with, I started with unzipping the file received and loading the data into RStudio as characters to avoid unnecessary factorization. 
 ```{r unzip load overview}
 unzip("espn-cricket-players-data.zip")
 cricdata<- data.table(read.csv("cricket_data.csv", stringsAsFactors=FALSE))
